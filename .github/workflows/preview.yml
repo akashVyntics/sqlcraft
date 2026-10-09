@@ -1,0 +1,48 @@
+name: Website preview
+on:
+  push:
+    branches: [development]
+    paths-ignore: [".preview/**"]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DJANGO_DEBUG: "true"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: development
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: "3.12"
+      - name: Install app and preview dependencies
+        run: |
+          python -m pip install -r requirements.lock
+          python -m pip install playwright==1.63.0
+          python -m playwright install --with-deps chromium
+      - name: Prepare disposable preview database
+        run: |
+          python manage.py migrate --noinput
+          python manage.py createcachetable
+          python manage.py collectstatic --noinput
+          python manage.py shell -c "from django.contrib.auth import get_user_model; from allauth.account.models import EmailAddress; u=get_user_model().objects.create_user(username='preview',email='preview@example.invalid',password='ci-preview-only-passphrase-2917'); EmailAddress.objects.create(user=u,email=u.email,verified=True,primary=True)"
+      - name: Capture website and check browser behavior
+        run: |
+          python manage.py runserver 127.0.0.1:8000 --noreload > /tmp/sqlcraft-preview.log 2>&1 &
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:8000/ > /dev/null; then break; fi
+            sleep 1
+          done
+          python -m scripts.capture_preview
+      - name: Save preview images to development only
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .preview
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'Capture SQLCraft website preview [skip ci]'
+          git push origin HEAD:development
