@@ -1,0 +1,20 @@
+{
+  "source_branch": "development",
+  "checks": [
+    "24 visible questions",
+    "email login",
+    "SQL submit accepted on three datasets",
+    "Hinglish switch",
+    "saved solved status",
+    "mobile layout",
+    "no browser JavaScript exceptions"
+  ],
+  "screenshots": [
+    "dashboard",
+    "login",
+    "workspace",
+    "hinglish",
+    "mobile"
+  ],
+  "note": "Screenshots of a local CI app, not a hosted production website. Preview user and database are disposable."
+}
