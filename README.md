@@ -27,7 +27,7 @@ Python 3.12+ is recommended. SQL worker resource limits and production runner pa
 
 ```bash
 python -m venv .venv
-.venv/bin/pip install -r requirements.in
+.venv/bin/pip install -r requirements.lock
 export DJANGO_DEBUG=true
 .venv/bin/python manage.py migrate
 .venv/bin/python manage.py createcachetable
@@ -48,6 +48,7 @@ python -m compileall -q config practice manage.py runner.py
 node --check static/app.js
 DJANGO_DEBUG=true .venv/bin/python manage.py check
 DJANGO_DEBUG=true .venv/bin/python manage.py makemigrations --check --dry-run
+DJANGO_DEBUG=true .venv/bin/python manage.py collectstatic --noinput
 DJANGO_DEBUG=true .venv/bin/python manage.py test practice
 ```
 
@@ -55,7 +56,7 @@ The offline script checks all 24 bilingual records and runs 20 SQL-portable solu
 
 The integration suite covers reference SQL, write/file-access rejection, result limits, cross-account isolation, CSRF, unverified email login, redirects, private APIs, draft ownership, hidden-data checking and API rate limits. Run it before deployment. Google consent and callback need an end-to-end test with your real OAuth configuration.
 
-After the first successful installation, generate and review an exact dependency lock with `pip freeze > requirements.lock`. Use that reviewed lock in CI and production instead of floating ranges. Monitor dependency security updates.
+`requirements.lock` pins the dependency versions installed by the first GitHub Actions run. CI and Docker use that lock. `requirements.in` documents compatible direct dependency ranges. Regenerate and review the full lock after dependency updates, run the checks, and monitor dependency security updates. GitHub Actions are pinned to resolved commit SHAs.
 
 ## Configure Google sign-in
 

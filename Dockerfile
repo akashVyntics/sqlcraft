@@ -1,8 +1,8 @@
 FROM python:3.12-slim
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 WORKDIR /app
-COPY --chmod=644 requirements.in /app/requirements.in
-RUN pip install --no-cache-dir -r requirements.in && useradd --uid 10001 --create-home appuser
+COPY --chmod=644 requirements.lock /app/requirements.lock
+RUN pip install --no-cache-dir -r requirements.lock && useradd --uid 10001 --create-home appuser
 COPY --chmod=755 . /app
 RUN DJANGO_DEBUG=true python manage.py collectstatic --noinput
 USER 10001
