@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% block title %}SQL workspace — SQLCraft{% endblock %}
+{% block page %}problem{% endblock %}
+{% block content %}
+<main class="workspace" data-problem="{{ problem_id }}">
+  <div class="workspace-heading"><a href="/" class="back-link">← All problems</a><span class="workspace-meta">SQL WORKSPACE <span class="live-dot">●</span> DuckDB</span></div>
+  <div class="workspace-grid">
+    <section class="description-panel"><div class="description-head"><div id="problem-badges" class="badges"></div><h1 id="problem-title">Loading problem…</h1><p id="problem-prompt" class="problem-prompt"></p></div>
+      <details class="hint"><summary>Need a hint?</summary><p id="problem-hint"></p></details>
+      <div class="schema-heading"><h2>Explore the data</h2><span>Public test dataset</span></div><div id="schema-list"></div>
+      <div class="rules-note"><strong>Before you submit</strong><p>Use the column names and row ordering requested in the question. Run checks the public data; Submit also checks two additional datasets.</p><p>Read-only SQL · 200 result rows maximum</p></div>
+    </section>
+    <section class="editor-panel" aria-label="Query editor">
+      <div class="editor-bar"><span><span class="file-icon">▤</span> solution.sql</span><span>DuckDB SQL</span></div>
+      <label class="sr-only" for="sql-editor">Your SQL query</label><textarea id="sql-editor" class="sql-editor" spellcheck="false" maxlength="12000" placeholder="-- Write your query here" aria-describedby="save-status"></textarea>
+      <div class="editor-actions"><span id="save-status" class="muted" role="status">{% if user.is_authenticated %}Drafts save to your account{% else %}Sign in to run queries and save drafts{% endif %}</span><div><button id="run" class="button subtle small">▷ Run</button><button id="submit" class="button primary small">Submit →</button></div></div>
+      {% if not user.is_authenticated %}<div class="signin-note"><span>You can explore the question. Sign in to practice and track results.</span><a href="{% url 'account_login' %}?next={{ request.path|urlencode }}" class="button primary small">Sign in</a></div>{% endif %}
+      <div class="results-heading"><h2>Query results</h2><span id="result-status" role="status">Ready when you are</span></div>
+      <div id="results" class="results empty-results"><div class="result-icon">▦</div><h3>Your next insight starts here.</h3><p>Write a query, then run it to see the results.</p></div>
+      <div class="solution-block"><button id="reveal-solution" class="button subtle small">Reveal explained solution</button><div id="solution-content" hidden><p id="solution-explanation"></p><pre id="solution-sql"></pre></div></div>
+      <div class="workspace-next"><a href="/">← Back to question bank</a><a id="next-problem" href="/">Next problem →</a></div>
+    </section>
+  </div>
+</main>
+{% endblock %}

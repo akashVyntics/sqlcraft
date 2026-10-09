@@ -1,0 +1,27 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{% block title %}SQLCraft — Practice real-world SQL{% endblock %}</title>
+  <meta name="description" content="Practice SQL through real business, analytics and data engineering problems. Every question in English and Hinglish.">
+  <link rel="stylesheet" href="{% static 'app.css' %}">
+  <script src="{% static 'app.js' %}" defer></script>
+  {% block extra_head %}{% endblock %}
+</head>
+<body data-page="{% block page %}account{% endblock %}" data-authenticated="{% if user.is_authenticated %}true{% else %}false{% endif %}">
+  <header class="topbar">
+    <a class="brand" href="/"><span class="brand-mark">S<span>›</span></span>SQL<span class="brand-light">Craft</span><span class="beta">BETA</span></a>
+    <nav aria-label="Main navigation"><a href="/" class="nav-link">Practice</a><a href="/#progress" class="nav-link">My progress</a></nav>
+    <div class="topbar-right">
+      <label class="sr-only" for="language">Question language</label>
+      <select id="language"><option value="en">English</option><option value="hi">Hinglish</option></select>
+      {% if user.is_authenticated %}<span class="account-email" title="{{ user.email }}">{{ user.email }}</span><a href="{% url 'account_logout' %}" class="button subtle small">Sign out</a>
+      {% else %}<a href="{% url 'account_login' %}" class="button subtle small">Sign in</a><a href="{% url 'account_signup' %}" class="button primary small">Get started <span aria-hidden="true">↗</span></a>{% endif %}
+    </div>
+  </header>
+  {% if messages %}<div class="messages" role="status">{% for message in messages %}<p>{{ message }}</p>{% endfor %}</div>{% endif %}
+  {% block content %}{% endblock %}
+  <footer><a href="/" class="footer-brand">SQLCraft</a><span>Real problems. Practical SQL.</span><span>English + Hinglish · DuckDB SQL</span></footer>
+</body>
+</html>

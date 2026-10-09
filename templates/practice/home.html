@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% block page %}home{% endblock %}
+{% block content %}
+<div class="shell">
+  <aside class="sidebar">
+    <p class="eyebrow">YOUR WORKSPACE</p>
+    <a href="/" class="sidebar-link active"><span>▦</span> SQL practice <span class="side-count">{{ question_count }}</span></a>
+    <a href="#progress" class="sidebar-link"><span>◴</span> My progress</a>
+    <div class="sidebar-section"><p class="eyebrow">LEARNING PATH</p>
+      <button class="path-link" data-level="Basic"><span class="path-dot green"></span>SQL foundations</button>
+      <button class="path-link" data-level="Intermediate"><span class="path-dot blue"></span>Business analytics</button>
+      <button class="path-link" data-level="Advanced"><span class="path-dot amber"></span>Advanced analytics</button>
+      <button class="path-link" data-level="Engineering"><span class="path-dot purple"></span>Data engineering</button>
+    </div>
+    <div class="sidebar-note"><span class="note-icon">⌘</span><strong>Build a habit, one query at a time.</strong><p>Small datasets. Real decisions. Skills you can use at work.</p><a href="/problems/completed-orders/">Start with foundations ↗</a></div>
+  </aside>
+  <main class="dashboard">
+    <section class="hero">
+      <div><p class="eyebrow accent">THE SQL PRACTICE WORKSPACE</p><h1>Write queries.<br><span>Solve real problems.</span></h1><p class="hero-copy">Go beyond textbook SQL. Work through business decisions, messy data, and the problems data teams actually solve.</p>
+        <a href="/problems/completed-orders/" class="button primary">Start practicing <span aria-hidden="true">→</span></a><span class="hero-caption">Every question in English & Hinglish</span>
+      </div>
+      <div class="hero-code" aria-label="Example analytics query"><div class="code-chrome"><span class="window-dots">● ● ●</span><span>revenue_by_region.sql</span><span class="live-dot">●</span></div><pre><span class="sql-key">SELECT</span> region,
+       <span class="sql-func">SUM</span>(amount) <span class="sql-key">AS</span> revenue
+<span class="sql-key">FROM</span> orders
+<span class="sql-key">WHERE</span> status = <span class="sql-string">'completed'</span>
+<span class="sql-key">GROUP BY</span> region;</pre><div class="code-result"><span>✓</span> Turn data into a decision.</div></div>
+    </section>
+    <section class="stats-grid" aria-label="Learning overview">
+      <div class="stat"><span>Practice problems</span><strong>{{ question_count }}<small>original scenarios</small></strong><p>From first query to pipeline logic</p></div>
+      <div class="stat"><span>Your solved problems</span><strong id="solved-stat">{% if user.is_authenticated %}…{% else %}—{% endif %}<small>of {{ question_count }}</small></strong><p id="solved-caption">{% if user.is_authenticated %}Synced to your account{% else %}Sign in to track your progress{% endif %}</p></div>
+      <div class="stat"><span>Your submissions</span><strong id="attempt-stat">{% if user.is_authenticated %}…{% else %}—{% endif %}<small>practice builds confidence</small></strong><p>Results checked across test datasets</p></div>
+    </section>
+    <section class="problem-section" id="practice">
+      <div class="section-heading"><div><p class="eyebrow">PUT YOUR SKILLS TO WORK</p><h2>Explore SQL problems</h2></div><span class="muted" id="problem-count">Loading problems…</span></div>
+      <div class="filterbar"><label class="search"><span aria-hidden="true">⌕</span><input id="search" type="search" placeholder="Search problems or topics…" aria-label="Search problems"></label><label class="sr-only" for="status-filter">Completion status</label><select id="status-filter"><option value="all">All statuses</option><option value="unsolved">Unsolved</option><option value="solved">Solved</option></select></div>
+      <div class="tabs" aria-label="Difficulty filter"><button class="tab selected" data-level="all" aria-pressed="true">All problems</button><button class="tab" data-level="Basic" aria-pressed="false">Basic</button><button class="tab" data-level="Intermediate" aria-pressed="false">Intermediate</button><button class="tab" data-level="Advanced" aria-pressed="false">Advanced</button><button class="tab" data-level="Engineering" aria-pressed="false">Engineering</button></div>
+      <div class="problem-table-wrap"><table class="problem-table"><thead><tr><th scope="col">STATUS</th><th scope="col">PROBLEM</th><th scope="col">LEVEL</th><th scope="col">TOPIC</th><th scope="col"><span class="sr-only">Open</span></th></tr></thead><tbody id="problem-list"></tbody></table><p class="empty-state" id="list-message" role="status">Loading your question bank…</p></div>
+    </section>
+    <section class="progress-section" id="progress"><div class="section-heading"><div><p class="eyebrow">YOUR LEARNING JOURNEY</p><h2>Progress, saved as you go</h2></div>{% if user.is_authenticated %}<button class="button subtle small" id="reset-progress">Clear my progress</button>{% endif %}</div><div id="progress-content" class="progress-card">{% if not user.is_authenticated %}<p>Sign in to save drafts, submissions and solved problems across devices.</p><a href="{% url 'account_login' %}" class="button primary small">Sign in to track progress →</a>{% else %}<p>Loading your account progress…</p>{% endif %}</div></section>
+  </main>
+</div>
+{% endblock %}

@@ -1,0 +1,5 @@
+{% extends 'account/base.html' %}
+{% load socialaccount %}
+{% block auth_content %}<p class="eyebrow">YOUR SQL JOURNEY STARTS HERE</p><h2>Create your account</h2><p class="muted">Practice real SQL. Track every step.</p>
+{% if google_enabled %}<form method="post" action="{% provider_login_url 'google' %}">{% csrf_token %}<button class="button google full" type="submit">Continue with Google</button></form><div class="divider">or use email</div>{% endif %}
+<form method="post" action="{% url 'account_signup' %}">{% csrf_token %}{{ form.as_p }}{% if redirect_field_value %}<input type="hidden" name="{{ redirect_field_name }}" value="{{ redirect_field_value }}">{% endif %}<button class="button primary full" type="submit">Create account →</button></form><p class="muted">We’ll email a verification link before your first sign-in.</p><p class="auth-links">Already practicing? <a href="{% url 'account_login' %}">Sign in</a></p>{% if local_development %}<p class="dev-note">Local development: verification emails are written to the server console.</p>{% endif %}{% endblock %}

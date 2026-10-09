@@ -1,0 +1,46 @@
+# Configure environment values on the host. Do not put real secrets in this file.
+# Place a trusted HTTPS reverse proxy in front of localhost:8000.
+services:
+  app:
+    build: .
+    ports: ["127.0.0.1:8000:8000"]
+    environment:
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?Set DJANGO_SECRET_KEY}
+      DJANGO_DEBUG: "false"
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:?Set allowed hosts}
+      CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:?Set HTTPS origins}
+      DATABASE_URL: ${DATABASE_URL:?Use a durable PostgreSQL database}
+      EMAIL_HOST: ${EMAIL_HOST:?Set SMTP host}
+      EMAIL_PORT: ${EMAIL_PORT:-587}
+      EMAIL_HOST_USER: ${EMAIL_HOST_USER:-}
+      EMAIL_HOST_PASSWORD: ${EMAIL_HOST_PASSWORD:-}
+      DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:?Set sender}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      TRUST_PROXY_HTTPS: "true"
+      SQL_RUNNER_URL: http://runner:9000
+      SQL_RUNNER_TOKEN: ${SQL_RUNNER_TOKEN:?Set runner token}
+    read_only: true
+    tmpfs: ["/tmp:size=64m,mode=1777"]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 512m
+    pids_limit: 100
+    networks: [front, runner_private]
+  runner:
+    build: .
+    command: ["python", "runner.py"]
+    environment:
+      SQL_RUNNER_TOKEN: ${SQL_RUNNER_TOKEN:?Set runner token}
+    read_only: true
+    tmpfs: ["/tmp:size=16m,mode=1777"]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 512m
+    cpus: 1
+    pids_limit: 40
+    networks: [runner_private]
+networks:
+  front: {}
+  runner_private:
+    internal: true

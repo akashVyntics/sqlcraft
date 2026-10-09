@@ -1,0 +1,2 @@
+{% extends 'account/base.html' %}
+{% block auth_content %}<p class="eyebrow accent">CHECK YOUR INBOX</p><h2>Verify your email</h2><p>Follow the verification link in your email, then sign in to start practicing.</p><a href="{% url 'account_login' %}" class="button primary full">Back to sign in</a>{% if local_development %}<p class="dev-note">Local development emails are printed to the server console.</p>{% endif %}{% endblock %}

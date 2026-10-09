@@ -1,0 +1,2 @@
+{% extends 'account/base.html' %}
+{% block auth_content %}<h2>Verify your email</h2>{% if confirmation %}<p>Confirm this email address for your SQLCraft account.</p><form method="post">{% csrf_token %}<button type="submit" class="button primary full">Confirm email</button></form>{% else %}<p>This link has expired or is invalid.</p><a href="{% url 'account_email' %}">Request another verification link</a>{% endif %}{% endblock %}

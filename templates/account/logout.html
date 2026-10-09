@@ -1,0 +1,2 @@
+{% extends 'account/base.html' %}
+{% block auth_content %}<h2>Sign out?</h2><p>Your saved progress will be here when you return.</p><form method="post" action="{% url 'account_logout' %}">{% csrf_token %}<button type="submit" class="button primary full">Sign out</button></form><p><a href="/">Keep practicing</a></p>{% endblock %}
