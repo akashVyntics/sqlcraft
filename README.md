@@ -4,7 +4,7 @@ SQL-first practice application with original business, analytics and data-engine
 
 ## Current status
 
-The source has been implemented. It has **not been deployed or runtime-verified** in this workspace: dependency installation could not complete because network access was unavailable. Python compilation, JavaScript syntax and dependency-free curriculum checks can run locally. The included Django/DuckDB integration tests must pass before launch. Google OAuth, email delivery and production hosting are not configured.
+The source is uploaded to the private `akashVyntics/sqlcraft` repository. [GitHub Actions validation](https://github.com/akashVyntics/sqlcraft/actions/runs/37972607618) passed all 17 tests, including all 24 reference queries on three datasets, authentication/account isolation, CSRF and saved progress. Django configuration, migrations, static assets, offline content checks, JavaScript syntax and production configuration checks also passed. CI uses pinned dependencies. Local dependency installation remains unavailable in the authoring workspace. Google OAuth, email delivery and production hosting are not configured; browser and live-service checks still need to be completed before launch. The production configuration check uses placeholder CI settings and does not verify real service credentials.
 
 This is a first implementation, not a security certification. No application can be guaranteed 100% secure.
 
