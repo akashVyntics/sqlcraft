@@ -1,8 +1,13 @@
 import json
+import os
+import re
+import subprocess
+from urllib.parse import urlsplit
 from unittest.mock import patch
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
+from django.core import mail
 from django.test import Client, TestCase, SimpleTestCase, override_settings
 from allauth.account.models import EmailAddress
 from .fixtures import dataset
@@ -44,6 +49,24 @@ class CurriculumTests(SimpleTestCase):
         self.assertFalse(same_result({'columns': ['x'], 'rows': [[2], [1], [1]]}, expected))
         self.assertFalse(same_result({'columns': ['wrong'], 'rows': expected['rows']}, expected))
         self.assertTrue(same_result({'columns': ['x'], 'rows': [[0.3]]}, {'columns': ['x'], 'rows': [[0.1 + 0.2]]}))
+
+    def test_production_requires_an_isolated_runner(self):
+        with patch.dict(os.environ, {'DJANGO_DEBUG': 'false', 'SQL_RUNNER_URL': '', 'SQL_RUNNER_TOKEN': ''}):
+            with self.assertRaisesMessage(ValueError, 'isolated query runner'):
+                execute_sql('SELECT 1')
+
+    def test_timeout_releases_execution_capacity(self):
+        with patch('practice.judge.subprocess.run', side_effect=subprocess.TimeoutExpired('worker', 8)):
+            for _ in range(3):
+                with self.assertRaisesMessage(ValueError, 'Query timed out'):
+                    execute_sql('SELECT 1')
+        self.assertEqual(execute_sql('SELECT 1 AS value')[0]['rows'], [[1]])
+
+    def test_unbounded_recursive_query_is_terminated(self):
+        sql = 'WITH RECURSIVE numbers AS (SELECT 1 AS n UNION ALL SELECT n + 1 FROM numbers) SELECT SUM(n) FROM numbers'
+        validate_sql(sql)
+        with self.assertRaises(ValueError):
+            execute_sql(sql)
 
 @override_settings(CACHES={'default': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache'}}, EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
 class AccountAndProgressTests(TestCase):
@@ -146,3 +169,49 @@ class AccountAndProgressTests(TestCase):
         self.client.logout()
         self.client.force_login(self.bob)
         self.assertIsNone(self.client.get('/api/questions/completed-orders/').json()['draft'])
+
+    def test_signup_verification_and_first_login(self):
+        self.client.logout()
+        password = 'a-unique-new-user-passphrase-927'
+        response = self.client.post('/accounts/signup/', {'email': 'newlearner@example.com', 'password1': password, 'password2': password})
+        self.assertEqual(response.status_code, 302)
+        learner = get_user_model().objects.get(email='newlearner@example.com')
+        email = EmailAddress.objects.get(user=learner)
+        self.assertFalse(email.verified)
+        self.assertNotIn('_auth_user_id', self.client.session)
+        self.assertTrue(mail.outbox)
+        link = re.search(r'https?://[^\s<>\"]+/accounts/confirm-email/[^\s/<>\"]+/', mail.outbox[-1].body)
+        self.assertIsNotNone(link, mail.outbox[-1].body)
+        confirmation_path = urlsplit(link.group()).path
+        self.assertEqual(self.client.get(confirmation_path).status_code, 200)
+        response = self.client.post(confirmation_path)
+        self.assertEqual(response.status_code, 302)
+        email.refresh_from_db()
+        self.assertTrue(email.verified)
+        self.client.post('/accounts/login/', {'login': learner.email, 'password': password})
+        self.assertEqual(int(self.client.session['_auth_user_id']), learner.pk)
+
+    def test_password_reset_link_changes_password(self):
+        self.client.logout()
+        response = self.client.post('/accounts/password/reset/', {'email': self.alice.email})
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(mail.outbox)
+        link = re.search(r'https?://[^\s<>\"]+/accounts/password/reset/key/[^\s<>\"]+', mail.outbox[-1].body)
+        self.assertIsNotNone(link, mail.outbox[-1].body)
+        response = self.client.get(urlsplit(link.group()).path, follow=True)
+        self.assertEqual(response.status_code, 200)
+        reset_path = response.request['PATH_INFO']
+        password = 'a-brand-new-reset-passphrase-813'
+        response = self.client.post(reset_path, {'password1': password, 'password2': password})
+        self.assertEqual(response.status_code, 302)
+        self.alice.refresh_from_db()
+        self.assertTrue(self.alice.check_password(password))
+        self.assertFalse(self.alice.check_password('a-long-example-password'))
+
+    def test_draft_survives_a_new_browser_session(self):
+        sql = BY_ID['completed-orders']['solution']
+        self.assertEqual(self.post('/api/questions/completed-orders/draft/', {'sql': sql}).status_code, 200)
+        other_browser = Client()
+        other_browser.force_login(self.alice)
+        data = other_browser.get('/api/questions/completed-orders/').json()
+        self.assertEqual(data['draft'], sql)
