@@ -6,6 +6,9 @@ class Attempt(models.Model):
     problem_id = models.CharField(max_length=80)
     sql = models.TextField()
     accepted = models.BooleanField(default=False)
+    error = models.CharField(max_length=300, blank=True)
+    tests_passed = models.PositiveSmallIntegerField(default=0)
+    tests_total = models.PositiveSmallIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

@@ -10,7 +10,7 @@ from .forms import PreferenceForm
 from django.views.decorators.http import require_GET, require_POST
 from django.views.decorators.csrf import ensure_csrf_cookie
 from .fixtures import SCHEMA, dataset
-from .judge import execute_sql, same_result
+from .judge import execute_sql, same_result, RunnerUnavailable
 from .models import Attempt, Draft, LearnerPreference
 from .questions import QUESTIONS, BY_ID
 
@@ -109,6 +109,7 @@ def run_query(request, slug):
         return JsonResponse({'error': 'Problem not found.'}, status=404)
     if limited(request, 'query', 15):
         return JsonResponse({'error': 'Query limit reached. Try again in a minute.'}, status=429)
+    sql, mode = None, None
     try:
         data = body(request)
         sql = data.get('sql')
@@ -125,11 +126,16 @@ def run_query(request, slug):
         checks = [same_result(a, e) for a, e in zip(actual, expected)]
         accepted = all(checks)
         if mode == 'submit':
-            Attempt.objects.create(user=request.user, problem_id=slug, sql=sql, accepted=accepted)
+            Attempt.objects.create(user=request.user, problem_id=slug, sql=sql, accepted=accepted, tests_passed=sum(checks), tests_total=len(checks))
         Draft.objects.update_or_create(user=request.user, problem_id=slug, defaults={'sql': sql})
         return JsonResponse({'actual': actual[0], 'expected': expected[0], 'accepted': accepted,
             'tests_passed': sum(checks), 'tests_total': len(checks), 'submitted': mode == 'submit'})
+    except RunnerUnavailable as exc:
+        return JsonResponse({'error': str(exc)}, status=503)
     except ValueError as exc:
+        if mode == 'submit' and isinstance(sql, str) and 0 < len(sql) <= 12000:
+            Attempt.objects.create(user=request.user, problem_id=slug, sql=sql, accepted=False, error=str(exc)[:300])
+            Draft.objects.update_or_create(user=request.user, problem_id=slug, defaults={'sql': sql})
         return JsonResponse({'error': str(exc)}, status=400)
 
 @require_POST

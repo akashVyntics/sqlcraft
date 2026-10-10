@@ -12,8 +12,8 @@
     </section>
     <section class="editor-panel" aria-label="Query editor">
       <div class="editor-bar"><span><span class="file-icon">▤</span> solution.sql</span><span>DuckDB SQL</span></div>
-      <label class="sr-only" for="sql-editor">Your SQL query</label><textarea id="sql-editor" class="sql-editor" spellcheck="false" maxlength="12000" placeholder="-- Write your query here" aria-describedby="save-status"></textarea>
-      <div class="editor-actions"><span id="save-status" class="muted" role="status">{% if user.is_authenticated %}Drafts save to your account{% else %}Sign in to run queries and save drafts{% endif %}</span><div><button id="run" class="button subtle small">▷ Run</button><button id="submit" class="button primary small">Submit →</button></div></div>
+      <label class="sr-only" for="sql-editor">Your SQL query</label><textarea id="sql-editor" disabled class="sql-editor" spellcheck="false" maxlength="12000" placeholder="-- Write your query here" aria-describedby="save-status"></textarea>
+      <div class="editor-actions"><span id="save-status" class="muted" role="status">{% if user.is_authenticated %}Drafts save to your account{% else %}Sign in to run queries and save drafts{% endif %}</span><div><button id="save-draft" class="button subtle small">Save draft</button><button id="reset-editor" class="button subtle small">Reset editor</button><button id="run" class="button subtle small">▷ Run</button><button id="submit" class="button primary small">Submit →</button></div></div>
       {% if not user.is_authenticated %}<div class="signin-note"><span>You can explore the question. Sign in to practice and track results.</span><a href="{% url 'account_login' %}?next={{ request.path|urlencode }}" class="button primary small">Sign in</a></div>{% endif %}
       <div class="results-heading"><h2>Query results</h2><span id="result-status" role="status">Ready when you are</span></div>
       <div id="results" class="results empty-results"><div class="result-icon">▦</div><h3>Your next insight starts here.</h3><p>Write a query, then run it to see the results.</p></div>
