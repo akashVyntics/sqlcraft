@@ -19,3 +19,8 @@ class Draft(models.Model):
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=['user', 'problem_id'], name='unique_user_problem_draft')]
+
+
+class LearnerPreference(models.Model):
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    language = models.CharField(max_length=2, choices=[('en', 'English'), ('hi', 'Hinglish')], default='en')

@@ -9,14 +9,14 @@
   <script src="{% static 'app.js' %}" defer></script>
   {% block extra_head %}{% endblock %}
 </head>
-<body data-page="{% block page %}account{% endblock %}" data-authenticated="{% if user.is_authenticated %}true{% else %}false{% endif %}">
+<body data-language="{{ account_language|default:'' }}" data-page="{% block page %}account{% endblock %}" data-authenticated="{% if user.is_authenticated %}true{% else %}false{% endif %}">
   <header class="topbar">
     <a class="brand" href="/"><span class="brand-mark">S<span>›</span></span>SQL<span class="brand-light">Craft</span><span class="beta">BETA</span></a>
     <nav aria-label="Main navigation"><a href="/" class="nav-link">Practice</a><a href="/#progress" class="nav-link">My progress</a></nav>
     <div class="topbar-right">
       <label class="sr-only" for="language">Question language</label>
       <select id="language"><option value="en">English</option><option value="hi">Hinglish</option></select>
-      {% if user.is_authenticated %}<span class="account-email" title="{{ user.email }}">{{ user.email }}</span><a href="{% url 'account_logout' %}" class="button subtle small">Sign out</a>
+      {% if user.is_authenticated %}<a href="{% url 'account_settings' %}" class="nav-link">Account</a><span class="account-email" title="{{ user.email }}">{{ user.email }}</span><a href="{% url 'account_logout' %}" class="button subtle small">Sign out</a>
       {% else %}<a href="{% url 'account_login' %}" class="button subtle small">Sign in</a><a href="{% url 'account_signup' %}" class="button primary small">Get started <span aria-hidden="true">↗</span></a>{% endif %}
     </div>
   </header>

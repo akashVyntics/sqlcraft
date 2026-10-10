@@ -4,6 +4,7 @@
   const authenticated = document.body.dataset.authenticated === 'true';
   let language = 'en';
   try { language = localStorage.getItem('sqlcraft-language') === 'hi' ? 'hi' : 'en'; } catch (_) {}
+  if (authenticated) language = document.body.dataset.language || language;
   const languageSelect = $('#language');
   languageSelect.value = language;
   let questions = [];
@@ -152,7 +153,7 @@
     } catch (error) { $('#results').className = 'results'; $('#results').replaceChildren(el('p', error.message, 'error-box')); $('#result-status').textContent = 'Query could not complete'; $('#result-status').className = 'result-status-fail'; }
     finally { busy = false; $('#run').disabled = false; $('#submit').disabled = false; $('#sql-editor').readOnly = false; }
   }
-  languageSelect.addEventListener('change', () => { language = languageSelect.value; try { localStorage.setItem('sqlcraft-language', language); } catch (_) {} renderQuestions(); renderProblemLanguage(); if ($('#progress-content')) loadProgress(); });
+  languageSelect.addEventListener('change', () => { language = languageSelect.value; try { localStorage.setItem('sqlcraft-language', language); } catch (_) {} if (authenticated) api('/api/account/preferences/', {language}).catch(error => { const message = el('p', error.message, 'load-error'); document.querySelector('header').after(message); }); renderQuestions(); renderProblemLanguage(); if ($('#progress-content')) loadProgress(); });
   if (document.body.dataset.page === 'home') {
     api('/api/questions/').then(data => { questions = data.questions; renderQuestions(); return loadProgress(); }).catch(error => { $('#list-message').textContent = error.message; $('#problem-count').textContent = 'Could not load'; });
     $('#search').addEventListener('input', renderQuestions); $('#status-filter').addEventListener('change', renderQuestions);
