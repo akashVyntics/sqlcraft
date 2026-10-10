@@ -1,4 +1,5 @@
 import os
+from urllib.parse import urlsplit
 from pathlib import Path
 from django.core.exceptions import ImproperlyConfigured
 import dj_database_url
@@ -33,7 +34,19 @@ TEMPLATES = [{'BACKEND': 'django.template.backends.django.DjangoTemplates',
         'django.contrib.messages.context_processors.messages', 'practice.context_processors.site_settings',
     ]}}]
 WSGI_APPLICATION = 'config.wsgi.application'
-DATABASES = {'default': dj_database_url.config(default=f'sqlite:///{BASE_DIR / "db.sqlite3"}', conn_max_age=0)}
+DATABASES = {'default': dj_database_url.parse(os.getenv('DATABASE_URL') or f'sqlite:///{BASE_DIR / "db.sqlite3"}', conn_max_age=0)}
+if not DEBUG:
+    if not os.getenv('DATABASE_URL') or DATABASES['default']['ENGINE'] != 'django.db.backends.postgresql':
+        raise ImproperlyConfigured('Production requires DATABASE_URL for durable PostgreSQL.')
+    if not os.getenv('DJANGO_ALLOWED_HOSTS') or '*' in ALLOWED_HOSTS or not ALLOWED_HOSTS:
+        raise ImproperlyConfigured('Set explicit production hostnames; wildcard hosts are not supported.')
+    runner_address = urlsplit(os.getenv('SQL_RUNNER_URL', ''))
+    if (runner_address.scheme not in ('http', 'https') or not runner_address.hostname
+            or runner_address.username or runner_address.password or runner_address.query or runner_address.fragment
+            or len(os.getenv('SQL_RUNNER_TOKEN', '')) < 32):
+        raise ImproperlyConfigured('Configure SQL_RUNNER_URL and a SQL_RUNNER_TOKEN of at least 32 characters.')
+    if bool(os.getenv('GOOGLE_CLIENT_ID')) != bool(os.getenv('GOOGLE_CLIENT_SECRET')):
+        raise ImproperlyConfigured('Set both Google OAuth values, or leave both unset.')
 if DATABASES['default']['ENGINE'] == 'django.db.backends.sqlite3':
     DATABASES['default']['OPTIONS'] = {'timeout': 20}
 CACHES = {'default': {'BACKEND': 'django.core.cache.backends.db.DatabaseCache', 'LOCATION': 'app_cache', 'TIMEOUT': 300}}
@@ -72,6 +85,8 @@ EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
 EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'true').lower() == 'true'
 EMAIL_TIMEOUT = 10
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'SQLCraft <noreply@example.invalid>')
+if not DEBUG and EMAIL_BACKEND in {'django.core.mail.backends.console.EmailBackend', 'django.core.mail.backends.locmem.EmailBackend', 'django.core.mail.backends.dummy.EmailBackend', 'django.core.mail.backends.filebased.EmailBackend'}:
+    raise ImproperlyConfigured('Use a production email backend, not a development mail sink.')
 if not DEBUG and (not EMAIL_HOST or not os.getenv('DEFAULT_FROM_EMAIL')):
     raise ImproperlyConfigured('Configure EMAIL_HOST and DEFAULT_FROM_EMAIL before production startup.')
 LANGUAGE_CODE = 'en-us'
@@ -101,3 +116,5 @@ DATA_UPLOAD_MAX_NUMBER_FIELDS = 20
 # Enable only behind a trusted proxy that removes incoming forwarded headers.
 if os.getenv('TRUST_PROXY_HTTPS') == 'true':
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+CSRF_FAILURE_VIEW = 'practice.errors.csrf_failure'

@@ -20,6 +20,13 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
+    def do_GET(self):
+        self.connection.settimeout(3)
+        if self.path != '/health' or not hmac.compare_digest(self.headers.get('Authorization', ''), 'Bearer ' + TOKEN):
+            self.reply(403, {'error': 'Forbidden.'})
+            return
+        self.reply(200, {'status': 'ok'})
+
     def do_POST(self):
         self.connection.settimeout(12)
         if self.path != '/execute' or not hmac.compare_digest(self.headers.get('Authorization', ''), 'Bearer ' + TOKEN):

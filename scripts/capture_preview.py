@@ -3,7 +3,7 @@ import base64
 import json
 from pathlib import Path
 from playwright.sync_api import sync_playwright, expect
-from practice.questions import BY_ID
+from practice.questions import BY_ID, QUESTIONS
 
 OUTPUT = Path('.preview')
 OUTPUT.mkdir(exist_ok=True)
@@ -20,7 +20,7 @@ with sync_playwright() as browser_tools:
     page.on('pageerror', lambda error: errors.append(str(error)))
     page.goto(BASE, wait_until='networkidle')
     page.locator('.problem-title-link').first.wait_for()
-    assert page.locator('.problem-title-link').count() == 24
+    assert page.locator('.problem-title-link').count() == len(QUESTIONS)
     capture(page, 'dashboard')
 
     page.goto(BASE + '/accounts/login/', wait_until='networkidle')
@@ -49,7 +49,7 @@ with sync_playwright() as browser_tools:
 
 (OUTPUT / 'summary.json').write_text(json.dumps({
     'source_branch': 'development',
-    'checks': ['24 visible questions', 'email login', 'SQL submit accepted on three datasets', 'Hinglish switch', 'saved solved status', 'mobile layout', 'no browser JavaScript exceptions'],
+    'checks': [f'{len(QUESTIONS)} visible questions', 'email login', 'SQL submit accepted on three datasets', 'Hinglish switch', 'saved solved status', 'mobile layout', 'no browser JavaScript exceptions'],
     'screenshots': ['dashboard', 'login', 'workspace', 'hinglish', 'mobile'],
     'note': 'Screenshots of a local CI app, not a hosted production website. Preview user and database are disposable.',
 }, indent=2))

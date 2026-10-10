@@ -1,0 +1,46 @@
+name: Browser checkpoints
+on:
+  push:
+    branches: [development, 'section/**']
+    paths-ignore: ['.preview/**']
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      DJANGO_DEBUG: 'true'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - run: |
+          python -m pip install -r requirements.lock
+          python -m pip install playwright==1.63.0
+          python -m playwright install --with-deps chromium
+      - name: Seed disposable browser-test account
+        run: |
+          python manage.py migrate --noinput
+          python manage.py createcachetable
+          python manage.py collectstatic --noinput
+          python manage.py shell -c "from django.contrib.auth import get_user_model; from allauth.account.models import EmailAddress; u=get_user_model().objects.create_user(username='browser',email='browser@example.invalid',password='ci-browser-only-fixture-passphrase-8274'); EmailAddress.objects.create(user=u,email=u.email,verified=True,primary=True)"
+      - name: Check frontend and backend together
+        run: |
+          python manage.py runserver 127.0.0.1:8000 --noreload > /tmp/sqlcraft-browser.log 2>&1 &
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:8000/health/live/ > /dev/null; then break; fi
+            sleep 1
+          done
+          python -m scripts.browser_checkpoints
+
+      - name: Save browser screenshots
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: sqlcraft-browser-checkpoints
+          path: browser-artifacts/
+          retention-days: 7
+          if-no-files-found: ignore

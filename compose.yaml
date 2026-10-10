@@ -14,12 +14,18 @@ services:
       EMAIL_PORT: ${EMAIL_PORT:-587}
       EMAIL_HOST_USER: ${EMAIL_HOST_USER:-}
       EMAIL_HOST_PASSWORD: ${EMAIL_HOST_PASSWORD:-}
+      EMAIL_USE_TLS: ${EMAIL_USE_TLS:-true}
       DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:?Set sender}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       TRUST_PROXY_HTTPS: "true"
       SQL_RUNNER_URL: http://runner:9000
       SQL_RUNNER_TOKEN: ${SQL_RUNNER_TOKEN:?Set runner token}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os, urllib.request; r=urllib.request.Request('http://127.0.0.1:8000/health/live/', headers={'Host': os.environ['DJANGO_ALLOWED_HOSTS'].split(',')[0].strip(), 'X-Forwarded-Proto': 'https'}); urllib.request.urlopen(r, timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
     read_only: true
     tmpfs: ["/tmp:size=64m,mode=1777"]
     cap_drop: [ALL]
@@ -39,6 +45,11 @@ services:
     mem_limit: 512m
     cpus: 1
     pids_limit: 40
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os, urllib.request; r=urllib.request.Request('http://127.0.0.1:9000/health', headers={'Authorization': 'Bearer '+os.environ['SQL_RUNNER_TOKEN']}); urllib.request.urlopen(r, timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
     networks: [runner_private]
 networks:
   front: {}

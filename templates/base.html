@@ -22,6 +22,6 @@
   </header>
   {% if messages %}<div class="messages" role="status">{% for message in messages %}<p>{{ message }}</p>{% endfor %}</div>{% endif %}
   {% block content %}{% endblock %}
-  <footer><a href="/" class="footer-brand">SQLCraft</a><span>Real problems. Practical SQL.</span><span>English + Hinglish · DuckDB SQL</span></footer>
+  <footer><a href="/" class="footer-brand">SQLCraft</a><span>Real problems. Practical SQL.</span><a href="{% url 'learning_guide' %}">Learning guide</a><span>English + Hinglish · DuckDB SQL</span></footer>
 </body>
 </html>
