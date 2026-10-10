@@ -2,7 +2,7 @@ import json
 from django.test import TestCase, override_settings
 from django.contrib.auth import get_user_model
 from allauth.account.models import EmailAddress
-from .models import LearnerPreference
+from .models import LearnerPreference, Draft, Attempt
 
 
 @override_settings(CACHES={'default': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache'}})
@@ -25,6 +25,11 @@ class AccountSettingsTests(TestCase):
     def test_unverified_session_cannot_access_private_apis(self):
         self.email.verified = False
         self.email.save()
+        Draft.objects.create(user=self.user, problem_id='completed-orders', sql='PRIVATE DRAFT')
+        Attempt.objects.create(user=self.user, problem_id='completed-orders', sql='SELECT 1', accepted=True)
+        detail = self.client.get('/api/questions/completed-orders/').json()
+        self.assertNotIn('draft', detail)
+        self.assertFalse(self.client.get('/api/questions/').json()['questions'][0]['solved'])
         self.assertEqual(self.client.get('/api/progress/').status_code, 403)
         self.assertEqual(self.client.post('/api/account/preferences/', '{}', content_type='application/json').status_code, 403)
 

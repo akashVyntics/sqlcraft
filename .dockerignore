@@ -5,3 +5,8 @@ __pycache__
 *.pyc
 staticfiles
 .git
+
+.preview
+browser-artifacts
+docs
+.github

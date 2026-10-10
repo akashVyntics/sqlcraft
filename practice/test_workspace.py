@@ -1,4 +1,7 @@
 import json
+import hashlib
+from django.core.cache import cache
+from .questions import BY_ID
 import os
 from unittest.mock import patch
 from django.test import SimpleTestCase, TestCase, override_settings
@@ -45,6 +48,14 @@ class SubmissionHistoryTests(TestCase):
     def test_unclosed_sql_string_is_a_client_error(self):
         response = self.post('/api/questions/completed-orders/run/', {'sql': "SELECT 'unclosed", 'mode': 'run'})
         self.assertEqual(response.status_code, 400)
+
+    def test_reference_cache_from_an_older_release_is_not_reused(self):
+        q = BY_ID['completed-orders']
+        old_key = 'reference:' + hashlib.sha256((q['id'] + q['solution'] + str((0,))).encode()).hexdigest()
+        cache.set(old_key, [{'columns': ['wrong'], 'rows': []}])
+        response = self.post('/api/questions/completed-orders/run/', {'sql': q['solution'], 'mode': 'run'})
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['accepted'])
 
     def test_runner_outage_does_not_count_as_a_submission(self):
         with patch('practice.views.execute_sql', side_effect=RunnerUnavailable('Runner unavailable')):

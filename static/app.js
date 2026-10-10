@@ -147,7 +147,7 @@
     if (!currentProblem || busy) return;
     if (!authenticated) { window.location.assign('/accounts/login/?next=' + encodeURIComponent(window.location.pathname)); return; }
     busy = true; $('#run').disabled = true; $('#submit').disabled = true; $('#save-draft').disabled = true; $('#reset-editor').disabled = true; $('#sql-editor').readOnly = true;
-    clearTimeout(draftTimer); await draftChain;
+    clearTimeout(draftTimer); await saveDraft();
     $('#result-status').textContent = mode === 'submit' ? 'Checking test datasets…' : 'Running query…';
     $('#result-status').className = ''; $('#results').replaceChildren(el('p', 'Waiting for the query runner…', 'muted'));
     try {

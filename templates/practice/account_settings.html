@@ -3,6 +3,6 @@
 {% block auth_content %}
 <h2>Your account</h2><p class="muted">{{ user.email }}</p>
 <form method="post">{% csrf_token %}{{ form.as_p }}<button class="button primary full" type="submit">Save preferences</button></form>
-<p class="auth-links"><a href="{% url 'account_email' %}">Manage verified email</a><a href="{% url 'account_change_password' %}">Change password</a></p>
+<p class="auth-links"><a href="{% url 'account_email' %}">Manage verified email</a>{% if user.has_usable_password %}<a href="{% url 'account_change_password' %}">Change password</a>{% else %}<a href="{% url 'account_set_password' %}">Set a password</a>{% endif %}</p>
 <p class="auth-links"><a href="/#progress">Your progress and data</a><a href="{% url 'export_progress' %}">Download practice data</a><a href="{% url 'account_logout' %}">Sign out</a></p>
 {% endblock %}
