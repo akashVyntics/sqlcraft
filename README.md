@@ -12,7 +12,7 @@ The GitHub Pages site is a static question-bank demo. Hosting the full app enabl
 - **Progress:** solved status, accepted submission rate, attempted count, UTC practice streak, resume drafts, paginated/filterable submission history and downloadable practice data. Progress reset affects only the signed-in account.
 - **Deployment:** container packaging, private runner, PostgreSQL, HTTPS settings, health endpoints, CI and browser checkpoints.
 
-Branches and pull requests are stacked in the order described in [checkpoint documentation](handbook/CHECKPOINTS.md). `section/deployment` contains the complete integrated implementation. `main` and the live Pages demo are not updated by this work.
+The five SQL section pull requests have been integrated into `development`. Use `development` to build and host the complete application. Individual section branches remain available for review; see [checkpoint documentation](handbook/CHECKPOINTS.md). `main` remains unchanged. GitHub Pages publishes the static 40-question demo from `development` → `/docs`; it does not run accounts, progress or SQL execution.
 
 ## Local development
 

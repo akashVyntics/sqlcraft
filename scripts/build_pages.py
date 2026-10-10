@@ -40,6 +40,7 @@ for(const control of [language,level,search])control.addEventListener('input',re
 window.addEventListener('hashchange',()=>{if(byId.has(location.hash.slice(1)))selected=location.hash.slice(1);render();});
 render();
 </script></body></html>'''.replace('PAYLOAD', payload)
+html = html.replace('24 original scenarios', f'{len(QUESTIONS)} original scenarios')
 (output / 'index.html').write_text(html, encoding='utf-8')
 (output / '.nojekyll').touch()
 print(f'Built Pages demo with {len(QUESTIONS)} bilingual questions in {output}')
