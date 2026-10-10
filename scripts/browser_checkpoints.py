@@ -73,7 +73,11 @@ with sync_playwright() as driver:
     page.reload(wait_until='networkidle')
     expect(page.locator('#language')).to_have_value('en')
     page.set_viewport_size({'width': 390, 'height': 844})
+    assert page.evaluate('document.documentElement.scrollWidth <= window.innerWidth'), 'Mobile dashboard overflows horizontally'
     page.screenshot(path=str(OUTPUT / 'mobile.png'))
+    page.goto(BASE + '/history/', wait_until='networkidle')
+    assert page.evaluate('document.documentElement.scrollWidth <= window.innerWidth'), 'Mobile history overflows horizontally'
+    page.screenshot(path=str(OUTPUT / 'history-mobile.png'))
     page.goto(BASE + '/accounts/logout/', wait_until='networkidle')
     page.locator('button[type=submit]').click()
     page.wait_for_url(BASE + '/')
