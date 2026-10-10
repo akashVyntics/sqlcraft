@@ -19,11 +19,13 @@
       <div><p class="eyebrow accent">THE SQL PRACTICE WORKSPACE</p><h1>Write queries.<br><span>Solve real problems.</span></h1><p class="hero-copy">Go beyond textbook SQL. Work through business decisions, messy data, and the problems data teams actually solve.</p>
         <a href="/problems/completed-orders/" class="button primary">Start practicing <span aria-hidden="true">→</span></a><span class="hero-caption">Every question in English & Hinglish</span>
       </div>
-      <div class="hero-code" aria-label="Example analytics query"><div class="code-chrome"><span class="window-dots">● ● ●</span><span>revenue_by_region.sql</span><span class="live-dot">●</span></div><pre><span class="sql-key">SELECT</span> region,
-       <span class="sql-func">SUM</span>(amount) <span class="sql-key">AS</span> revenue
-<span class="sql-key">FROM</span> orders
-<span class="sql-key">WHERE</span> status = <span class="sql-string">'completed'</span>
-<span class="sql-key">GROUP BY</span> region;</pre><div class="code-result"><span>✓</span> Turn data into a decision.</div></div>
+      <div class="hero-code" aria-label="Example analytics query"><div class="code-chrome"><span class="window-dots">● ● ●</span><span>revenue_by_region.sql</span><span class="live-dot">●</span></div><pre><span class="sql-key">SELECT</span> c.region,
+       <span class="sql-func">SUM</span>(o.amount) <span class="sql-key">AS</span> revenue
+<span class="sql-key">FROM</span> orders o
+<span class="sql-key">JOIN</span> customers c
+  <span class="sql-key">ON</span> c.customer_id = o.customer_id
+<span class="sql-key">WHERE</span> o.status = <span class="sql-string">'completed'</span>
+<span class="sql-key">GROUP BY</span> c.region;</pre><div class="code-result"><span>✓</span> Turn data into a decision.</div></div>
     </section>
     <section class="stats-grid" aria-label="Learning overview">
       <div class="stat"><span>Practice problems</span><strong>{{ question_count }}<small>original scenarios</small></strong><p>From first query to pipeline logic</p></div>
@@ -33,6 +35,7 @@
     <section class="problem-section" id="practice">
       <div class="section-heading"><div><p class="eyebrow">PUT YOUR SKILLS TO WORK</p><h2>Explore SQL problems</h2></div><span class="muted" id="problem-count">Loading problems…</span></div>
       <div class="filterbar"><label class="search"><span aria-hidden="true">⌕</span><input id="search" type="search" placeholder="Search problems or topics…" aria-label="Search problems"></label><label class="sr-only" for="status-filter">Completion status</label><select id="status-filter"><option value="all">All statuses</option><option value="unsolved">Unsolved</option><option value="solved">Solved</option></select></div>
+      <label class="muted" for="topic-filter">Topic</label><select id="topic-filter"><option value="all">All topics</option></select>
       <div class="tabs" aria-label="Difficulty filter"><button class="tab selected" data-level="all" aria-pressed="true">All problems</button><button class="tab" data-level="Basic" aria-pressed="false">Basic</button><button class="tab" data-level="Intermediate" aria-pressed="false">Intermediate</button><button class="tab" data-level="Advanced" aria-pressed="false">Advanced</button><button class="tab" data-level="Engineering" aria-pressed="false">Engineering</button></div>
       <div class="problem-table-wrap"><table class="problem-table"><thead><tr><th scope="col">STATUS</th><th scope="col">PROBLEM</th><th scope="col">LEVEL</th><th scope="col">TOPIC</th><th scope="col"><span class="sr-only">Open</span></th></tr></thead><tbody id="problem-list"></tbody></table><p class="empty-state" id="list-message" role="status">Loading your question bank…</p></div>
     </section>

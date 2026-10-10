@@ -6,7 +6,7 @@ import sqlite3
 from practice.fixtures import SCHEMA, dataset
 from practice.questions import QUESTIONS, BY_ID
 
-assert len(QUESTIONS) == len(BY_ID) == 24
+assert len(QUESTIONS) == len(BY_ID) == 40
 for q in QUESTIONS:
     for field in ('title', 'prompt', 'hint', 'explanation'):
         assert set(q[field]) == {'en', 'hi'} and all(q[field].values()), (q['id'], field)
@@ -36,5 +36,5 @@ for seed in (0, 7, 22):
     for customer, region, start, end in con.execute(BY_ID['scd-history']['solution']):
         assert end is None or end > start
     con.close()
-print(f'PASS: 24 bilingual question records; {len(smoke_checked)} portable reference queries on three datasets; revenue, customer coverage, payment ties and SCD intervals.')
+print(f'PASS: {len(QUESTIONS)} bilingual question records; {len(smoke_checked)} portable reference queries on three datasets; revenue, customer coverage, payment ties and SCD intervals.')
 print('Not run: DuckDB execution, Django authentication/API integration, browser QA or hosted deployment.')
