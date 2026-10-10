@@ -13,3 +13,6 @@ footer{flex-wrap:wrap}
 .progress-levels>div,.progress-levels>section{min-width:0}
 .progress-card h2{overflow-wrap:anywhere}
 @media(max-width:800px){.progress-levels{grid-template-columns:repeat(2,minmax(0,1fr))}}
+/* Anchor visually hidden table labels inside the scrolling table container. */
+.problem-table-wrap,.result-scroll{position:relative}
+.sr-only{left:0;top:0}
