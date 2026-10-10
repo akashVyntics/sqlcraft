@@ -1,0 +1,39 @@
+name: Pages demo checks
+on:
+  push:
+    branches: [development]
+    paths:
+      - 'docs/**'
+      - 'scripts/build_pages.py'
+      - 'practice/questions.py'
+      - '.github/workflows/pages-check.yml'
+  pull_request:
+    paths:
+      - 'docs/**'
+      - 'scripts/build_pages.py'
+      - 'practice/questions.py'
+      - '.github/workflows/pages-check.yml'
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - run: python -m scripts.build_pages
+      - name: Verify committed Pages output is current
+        run: git diff --exit-code -- docs
+      - name: Check JavaScript syntax
+        run: |
+          python - <<'PY'
+          import re
+          from pathlib import Path
+          html = Path('docs/index.html').read_text()
+          script = re.findall(r'<script>(.*?)</script>', html, re.S)[0]
+          Path('/tmp/sqlcraft-pages.js').write_text(script)
+          PY
+          node --check /tmp/sqlcraft-pages.js
