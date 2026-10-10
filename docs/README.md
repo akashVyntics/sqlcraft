@@ -23,3 +23,13 @@ From the repository root, run `python -m scripts.build_pages` after changing the
 question bank or demo builder, then commit the generated `docs/index.html` to
 `development`. The Pages demo checks verify that committed output matches the
 builder and that the JavaScript parses.
+
+## If the site is not live
+
+Confirm that Pages uses **Deploy from a branch → development → /docs**.
+The `main` branch has no demo folder. The Pages demo checks workflow validates
+files but does not publish them; selecting **GitHub Actions** as the Pages source
+will require a separate deployment workflow. With branch publishing selected,
+look for GitHub's **pages build and deployment** run in the Actions tab and
+check its build and deploy jobs. Use the repository URL ending in `/sqlcraft/`,
+not the account root URL.
