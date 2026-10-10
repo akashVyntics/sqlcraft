@@ -1,6 +1,7 @@
 import json
 import hashlib
 from django.core.cache import cache
+from django.core.exceptions import RequestDataTooBig
 from django.http import JsonResponse, Http404, StreamingHttpResponse
 from django.core.paginator import Paginator, InvalidPage
 from django.db import transaction
@@ -50,6 +51,8 @@ def body(request):
         raise ValueError('Send an application/json request.')
     try:
         value = json.loads(request.body)
+    except RequestDataTooBig:
+        raise ValueError('Request body is too large.')
     except (ValueError, UnicodeDecodeError):
         raise ValueError('Invalid JSON request.')
     if not isinstance(value, dict):

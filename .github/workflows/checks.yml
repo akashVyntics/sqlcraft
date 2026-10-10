@@ -6,10 +6,26 @@ permissions:
   contents: read
 jobs:
   test:
+    strategy:
+      fail-fast: false
+      matrix:
+        database: [sqlite, postgres]
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: sqlcraft
+          POSTGRES_PASSWORD: ci-database-only
+          POSTGRES_DB: sqlcraft
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U sqlcraft -d sqlcraft"
+          --health-interval 5s --health-timeout 5s --health-retries 10
     timeout-minutes: 10
     env:
       DJANGO_DEBUG: "true"
+      DATABASE_URL: ${{ matrix.database == 'postgres' && 'postgres://sqlcraft:ci-database-only@127.0.0.1:5432/sqlcraft' || '' }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
@@ -28,6 +44,12 @@ jobs:
         run: python manage.py collectstatic --noinput
       - name: Run authentication, isolation and SQL tests
         run: python manage.py test practice
+      - name: Check private runner over real HTTP
+        run: python -m scripts.check_runner
+      - name: Apply migrations to a fresh database
+        run: |
+          python manage.py migrate --noinput
+          python manage.py createcachetable
       - name: Check question content
         run: python verify_offline.py
       - name: Check JavaScript syntax
@@ -35,8 +57,22 @@ jobs:
       - name: Verify production configuration
         env:
           DJANGO_DEBUG: "false"
+          DATABASE_URL: "postgres://sqlcraft:ci-database-only@127.0.0.1:5432/sqlcraft"
+          SQL_RUNNER_URL: "http://runner:9000"
+          SQL_RUNNER_TOKEN: "ci-only-runner-configuration-fixture-token-8182"
           DJANGO_SECRET_KEY: "ci-only-configuration-check-key-never-for-production-9fd733e8c201"
           EMAIL_HOST: "smtp.example.invalid"
           DEFAULT_FROM_EMAIL: "noreply@example.invalid"
           DJANGO_ALLOWED_HOSTS: "sqlcraft.example.invalid"
         run: python manage.py check --deploy --fail-level WARNING
+
+  container:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Build production image
+        run: docker build --pull -t sqlcraft:ci .
+      - name: Verify non-root runner and resource constraints
+        run: |
+          docker run --rm --read-only --cap-drop ALL --security-opt no-new-privileges --memory 512m --cpus 1 --pids-limit 40 --tmpfs /tmp:size=16m,mode=1777 sqlcraft:ci python -c "import os; from practice.judge import execute_local; assert os.getuid() == 10001; assert execute_local('SELECT 1 AS value')[0]['rows'] == [[1]]"
