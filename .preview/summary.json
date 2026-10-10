@@ -1,7 +1,7 @@
 {
   "source_branch": "development",
   "checks": [
-    "24 visible questions",
+    "40 visible questions",
     "email login",
     "SQL submit accepted on three datasets",
     "Hinglish switch",
