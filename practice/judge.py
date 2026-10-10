@@ -11,6 +11,41 @@ import sqlglot
 from sqlglot import exp
 from .fixtures import SCHEMA
 
+class RunnerUnavailable(ValueError):
+    """An infrastructure failure that must not be graded as a learner failure."""
+
+
+def checked_results(payload, seeds):
+    if not isinstance(payload, dict):
+        raise RunnerUnavailable('The query runner returned an invalid response.')
+    if payload.get('error'):
+        if not isinstance(payload['error'], str):
+            raise RunnerUnavailable('The query runner returned an invalid response.')
+        raise ValueError(payload['error'][:300])
+    results = payload.get('results')
+    if not isinstance(results, list) or len(results) != len(seeds):
+        raise RunnerUnavailable('The query runner returned incomplete test results.')
+    for result in results:
+        if not isinstance(result, dict):
+            raise RunnerUnavailable('The query runner returned an invalid result.')
+        columns, rows = result.get('columns'), result.get('rows')
+        if (not isinstance(columns, list) or not 1 <= len(columns) <= 30
+                or not all(isinstance(column, str) for column in columns)
+                or not isinstance(rows, list) or len(rows) > 200):
+            raise RunnerUnavailable('The query runner returned an invalid result.')
+        for row in rows:
+            if not isinstance(row, list) or len(row) != len(columns):
+                raise RunnerUnavailable('The query runner returned an invalid row.')
+            for value in row:
+                if value is not None and not isinstance(value, (str, int, float, bool)):
+                    raise RunnerUnavailable('The query runner returned an invalid value.')
+                if isinstance(value, float) and not math.isfinite(value):
+                    raise RunnerUnavailable('The query runner returned a non-finite number.')
+        if len(json.dumps(result)) > 100000:
+            raise RunnerUnavailable('The query runner returned an oversized result.')
+    return results
+
+
 SLOTS = threading.BoundedSemaphore(2)
 WORKER = Path(__file__).with_name('query_worker.py')
 
@@ -19,7 +54,7 @@ def validate_sql(sql):
         raise ValueError('Write a query between 1 and 12,000 characters.')
     try:
         statements = sqlglot.parse(sql, read='duckdb')
-    except sqlglot.errors.ParseError:
+    except (sqlglot.errors.ParseError, sqlglot.errors.TokenError, RecursionError):
         raise ValueError('SQL syntax could not be parsed. Use the DuckDB dialect.')
     if len(statements) != 1 or not isinstance(statements[0], (exp.Select, exp.Union, exp.Intersect, exp.Except)):
         raise ValueError('Use one SELECT query, optionally with CTEs. Mutating statements are not supported.')
@@ -47,20 +82,30 @@ def execute_sql(sql, seeds=(0,)):
             headers={'Content-Type': 'application/json', 'Authorization': 'Bearer ' + runner_token}, method='POST')
         try:
             with urlopen(request, timeout=10) as response:
-                payload = json.loads(response.read(320000))
-        except (HTTPError, URLError, TimeoutError, ValueError):
-            raise ValueError('The query runner is unavailable. Try again shortly.')
-        if payload.get('error'):
-            raise ValueError(payload['error'])
-        return payload['results']
+                raw = response.read(320001)
+                if len(raw) > 320000:
+                    raise RunnerUnavailable('The query runner response is too large.')
+                payload = json.loads(raw)
+        except HTTPError as error:
+            if error.code == 400:
+                try:
+                    payload = json.loads(error.read(32768))
+                except (ValueError, UnicodeDecodeError):
+                    raise RunnerUnavailable('The query runner is unavailable. Try again shortly.')
+                if isinstance(payload, dict) and isinstance(payload.get('error'), str):
+                    raise ValueError(payload['error'][:300])
+            raise RunnerUnavailable('The query runner is unavailable or busy. Try again shortly.')
+        except (URLError, TimeoutError, ValueError, UnicodeDecodeError):
+            raise RunnerUnavailable('The query runner is unavailable. Try again shortly.')
+        return checked_results(payload, seeds)
     if os.getenv('DJANGO_DEBUG', '').lower() != 'true':
-        raise ValueError('The isolated query runner must be configured before production use.')
+        raise RunnerUnavailable('The isolated query runner must be configured before production use.')
     return execute_local(sql, seeds)
 
 def execute_local(sql, seeds=(0,)):
     validate_sql(sql)
     if not SLOTS.acquire(blocking=False):
-        raise ValueError('The query runner is busy. Try again shortly.')
+        raise RunnerUnavailable('The query runner is busy. Try again shortly.')
     try:
         child_env = {'PATH': os.defpath, 'LANG': 'C.UTF-8', 'PYTHONDONTWRITEBYTECODE': '1'}
         try:
@@ -73,9 +118,7 @@ def execute_local(sql, seeds=(0,)):
             payload = json.loads(result.stdout)
         except (ValueError, TypeError):
             raise ValueError('Query could not run.')
-        if payload.get('error'):
-            raise ValueError(payload['error'])
-        return payload['results']
+        return checked_results(payload, seeds)
     finally:
         SLOTS.release()
 
@@ -86,6 +129,8 @@ def same_result(actual, expected):
         if len(arow) != len(erow):
             return False
         for a, e in zip(arow, erow):
+            if isinstance(a, bool) != isinstance(e, bool):
+                return False
             if isinstance(a, (int, float)) and isinstance(e, (int, float)):
                 if not math.isclose(a, e, rel_tol=1e-9, abs_tol=1e-6):
                     return False

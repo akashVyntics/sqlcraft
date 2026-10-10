@@ -15,6 +15,7 @@
   let draftSequence = 0;
   let draftChain = Promise.resolve();
   let busy = false;
+  let draftDirty = false;
   const el = (tag, text, className) => {
     const node = document.createElement(tag);
     if (text !== undefined && text !== null) node.textContent = String(text);
@@ -27,7 +28,7 @@
   };
   async function api(path, data) {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
+    const timeout = setTimeout(() => controller.abort(), path.endsWith('/run/') ? 30000 : 15000);
     let response;
     try { response = await fetch(path, {
       credentials: 'same-origin',
@@ -118,7 +119,7 @@
       renderProblemLanguage();
       $('#problem-badges').append(badge(currentProblem.level), el('span', currentProblem.topic, 'muted'));
       if (currentProblem.solved) $('#problem-badges').append(el('span', '✓ Solved', 'result-status-pass'));
-      $('#sql-editor').value = currentProblem.draft ?? currentProblem.starter;
+      $('#sql-editor').value = currentProblem.draft ?? currentProblem.starter; $('#sql-editor').disabled = false;
       currentProblem.schema.forEach(table => { const card = el('section', undefined, 'schema-card'); const title = el('div', undefined, 'schema-name'); title.append(el('span', table.name), el('small', table.row_count + ' rows')); card.append(title, dataTable(table.columns.map(c => c[0]), table.rows, table.columns.map(c => c[1]))); $('#schema-list').append(card); });
       const list = await api('/api/questions/'); const index = list.questions.findIndex(q => q.id === slug); const next = list.questions[index + 1];
       if (next) $('#next-problem').href = '/problems/' + next.id + '/'; else $('#next-problem').textContent = 'Back to question bank →';
@@ -131,17 +132,17 @@
     const sequence = ++draftSequence;
     $('#save-status').textContent = 'Saving draft…';
     draftChain = draftChain.catch(() => {}).then(() => api('/api/questions/' + currentProblem.id + '/draft/', {sql})).then(() => {
-      if (sequence === draftSequence) $('#save-status').textContent = 'Draft saved to your account';
+      if (sequence === draftSequence && $('#sql-editor').value === sql) { draftDirty = false; $('#save-status').textContent = 'Draft saved to your account'; }
     }).catch(error => { if (sequence === draftSequence) $('#save-status').textContent = error.message; });
     return draftChain;
   }
   async function run(mode) {
     if (!currentProblem || busy) return;
     if (!authenticated) { window.location.assign('/accounts/login/?next=' + encodeURIComponent(window.location.pathname)); return; }
-    busy = true; $('#run').disabled = true; $('#submit').disabled = true; $('#sql-editor').readOnly = true;
+    busy = true; $('#run').disabled = true; $('#submit').disabled = true; $('#save-draft').disabled = true; $('#reset-editor').disabled = true; $('#sql-editor').readOnly = true;
     clearTimeout(draftTimer); await draftChain;
     $('#result-status').textContent = mode === 'submit' ? 'Checking test datasets…' : 'Running query…';
-    $('#result-status').className = '';
+    $('#result-status').className = ''; $('#results').replaceChildren(el('p', 'Waiting for the query runner…', 'muted'));
     try {
       const data = await api('/api/questions/' + currentProblem.id + '/run/', {sql: $('#sql-editor').value, mode});
       const output = $('#results'); output.className = 'results'; output.replaceChildren();
@@ -150,9 +151,9 @@
       output.append(el('p', 'Your output · ' + data.actual.rows.length + ' rows', 'result-label'), dataTable(data.actual.columns, data.actual.rows));
       if (!data.accepted) output.append(el('p', 'Expected output on the public dataset', 'result-label'), dataTable(data.expected.columns, data.expected.rows));
       if (mode === 'submit' && data.accepted && !currentProblem.solved) { currentProblem.solved = true; $('#problem-badges').append(el('span', '✓ Solved', 'result-status-pass')); }
-      $('#save-status').textContent = 'Draft saved to your account';
+      draftDirty = false; $('#save-status').textContent = 'Draft saved to your account';
     } catch (error) { $('#results').className = 'results'; $('#results').replaceChildren(el('p', error.message, 'error-box')); $('#result-status').textContent = 'Query could not complete'; $('#result-status').className = 'result-status-fail'; }
-    finally { busy = false; $('#run').disabled = false; $('#submit').disabled = false; $('#sql-editor').readOnly = false; }
+    finally { busy = false; $('#run').disabled = false; $('#submit').disabled = false; $('#save-draft').disabled = false; $('#reset-editor').disabled = false; $('#sql-editor').readOnly = false; }
   }
   languageSelect.addEventListener('change', () => { language = languageSelect.value; try { localStorage.setItem('sqlcraft-language', language); } catch (_) {} if (authenticated) api('/api/account/preferences/', {language}).catch(error => { const message = el('p', error.message, 'load-error'); document.querySelector('header').after(message); }); renderQuestions(); renderProblemLanguage(); if ($('#progress-content')) loadProgress(); });
   if (document.body.dataset.page === 'home') {
@@ -170,10 +171,12 @@
   }
   if (document.body.dataset.page === 'problem') {
     loadProblem();
-    $('#sql-editor').addEventListener('input', () => { if (!authenticated) return; clearTimeout(draftTimer); $('#save-status').textContent = 'Unsaved changes'; draftTimer = setTimeout(saveDraft, 1200); });
+    $('#sql-editor').addEventListener('input', () => { if (!authenticated) return; clearTimeout(draftTimer); draftDirty = true; $('#save-status').textContent = 'Unsaved changes'; draftTimer = setTimeout(saveDraft, 1200); });
     $('#sql-editor').addEventListener('keydown', event => { if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') { event.preventDefault(); run('run'); } });
+    $('#save-draft').addEventListener('click', () => { if (!authenticated) { window.location.assign('/accounts/login/?next=' + encodeURIComponent(window.location.pathname)); return; } clearTimeout(draftTimer); saveDraft(); });
+    $('#reset-editor').addEventListener('click', () => { if (!currentProblem || busy || !window.confirm('Replace your current query with the starter query?')) return; $('#sql-editor').value = currentProblem.starter; $('#sql-editor').dispatchEvent(new Event('input')); });
     $('#run').addEventListener('click', () => run('run')); $('#submit').addEventListener('click', () => run('submit'));
     $('#reveal-solution').addEventListener('click', async () => { if (!currentProblem) return; if (!authenticated) { window.location.assign('/accounts/login/?next=' + encodeURIComponent(window.location.pathname)); return; } try { solution = await api('/api/questions/' + currentProblem.id + '/solution/', {}); $('#solution-explanation').textContent = solution.explanation[language]; $('#solution-sql').textContent = solution.sql; $('#solution-content').hidden = false; $('#reveal-solution').textContent = 'Explained solution'; } catch (error) { $('#save-status').textContent = error.message; } });
-    window.addEventListener('beforeunload', event => { if (authenticated && (draftTimer || busy) && $('#save-status').textContent !== 'Draft saved to your account') { event.preventDefault(); event.returnValue = ''; } });
+    window.addEventListener('beforeunload', event => { if (authenticated && (draftDirty || busy)) { event.preventDefault(); event.returnValue = ''; } });
   }
 })();
