@@ -92,6 +92,9 @@
       $('#attempt-stat').replaceChildren(el('span', data.total_attempts), el('small', 'recorded submissions'));
       questions.forEach(q => { q.solved = data.solved.includes(q.id); }); renderQuestions();
       const container = $('#progress-content'); container.replaceChildren();
+      const summary = el('p', data.acceptance_rate + '% submissions accepted · ' + data.attempted_count + ' problems attempted · ' + data.streak_days + ' day practice streak (UTC)', 'muted'); container.append(summary);
+      if (data.next_problem) { const next = questions.find(q => q.id === data.next_problem); const link = el('a', 'Continue: ' + next.title[language], 'button primary small'); link.href = '/problems/' + next.id + '/'; container.append(link); }
+      if (data.drafts.length) { const drafts = el('div', undefined, 'activity-list'); drafts.append(el('h3', 'Resume a saved draft')); data.drafts.forEach(draft => { const q = questions.find(q => q.id === draft.problem_id); if (!q) return; const link = el('a', q.title[language], 'sidebar-link'); link.href = '/problems/' + q.id + '/'; drafts.append(link); }); container.append(drafts); }
       const levels = el('div', undefined, 'progress-levels');
       ['Basic', 'Intermediate', 'Advanced', 'Engineering'].forEach(value => {
         const total = questions.filter(q => q.level === value).length;
@@ -100,10 +103,14 @@
       }); container.append(levels);
       const activity = el('div', undefined, 'activity-list'); activity.append(el('h3', 'Recent submissions'));
       if (!data.activity.length) activity.append(el('p', 'Your first submission will appear here.'));
-      data.activity.forEach(item => { const q = questions.find(q => q.id === item.problem_id); const row = el('div', undefined, 'activity-row'); const a = el('a', q ? q.title[language] : item.problem_id); a.href = '/problems/' + item.problem_id + '/'; const time = el('time', new Date(item.created_at).toLocaleString()); time.dateTime = item.created_at; row.append(a, el('span', item.accepted ? 'Accepted' : 'Try again', item.accepted ? 'result-status-pass' : ''), time); activity.append(row); });
+      data.activity.forEach(item => { const q = questions.find(q => q.id === item.problem_id); const row = el('div', undefined, 'activity-row'); const a = el('a', q ? q.title[language] : item.problem_id); a.href = '/problems/' + item.problem_id + '/'; const time = el('time', new Date(item.created_at).toLocaleString()); time.dateTime = item.created_at; row.append(a, el('span', item.accepted ? 'Accepted' : (item.error ? 'Query error' : 'Try again'), item.accepted ? 'result-status-pass' : ''), time); activity.append(row); });
       container.append(activity);
     } catch (error) { $('#progress-content').replaceChildren(el('p', error.message, 'load-error')); $('#solved-caption').textContent = 'Progress could not load. Refresh to retry.'; }
   }
+  function renderHistoryLanguage() {
+    document.querySelectorAll('[data-title-en]').forEach(node => { node.textContent = language === 'hi' ? node.dataset.titleHi : node.dataset.titleEn; });
+  }
+  renderHistoryLanguage();
   function renderProblemLanguage() {
     if (!currentProblem) return;
     $('#problem-title').textContent = currentProblem.title[language];
@@ -155,7 +162,7 @@
     } catch (error) { $('#results').className = 'results'; $('#results').replaceChildren(el('p', error.message, 'error-box')); $('#result-status').textContent = 'Query could not complete'; $('#result-status').className = 'result-status-fail'; }
     finally { busy = false; $('#run').disabled = false; $('#submit').disabled = false; $('#save-draft').disabled = false; $('#reset-editor').disabled = false; $('#sql-editor').readOnly = false; }
   }
-  languageSelect.addEventListener('change', () => { language = languageSelect.value; try { localStorage.setItem('sqlcraft-language', language); } catch (_) {} if (authenticated) api('/api/account/preferences/', {language}).catch(error => { const message = el('p', error.message, 'load-error'); document.querySelector('header').after(message); }); renderQuestions(); renderProblemLanguage(); if ($('#progress-content')) loadProgress(); });
+  languageSelect.addEventListener('change', () => { language = languageSelect.value; try { localStorage.setItem('sqlcraft-language', language); } catch (_) {} if (authenticated) api('/api/account/preferences/', {language}).catch(error => { const message = el('p', error.message, 'load-error'); document.querySelector('header').after(message); }); renderQuestions(); renderProblemLanguage(); renderHistoryLanguage(); if ($('#progress-content')) loadProgress(); });
   if (document.body.dataset.page === 'home') {
     api('/api/questions/').then(data => { questions = data.questions; [...new Set(questions.map(q => q.topic))].sort().forEach(topic => { const option = el('option', topic); option.value = topic; $('#topic-filter').append(option); }); renderQuestions(); return loadProgress(); }).catch(error => { $('#list-message').hidden = false; $('#list-message').textContent = error.message; $('#problem-count').textContent = 'Could not load'; });
     $('#search').addEventListener('input', renderQuestions); $('#status-filter').addEventListener('change', renderQuestions); $('#topic-filter').addEventListener('change', renderQuestions);

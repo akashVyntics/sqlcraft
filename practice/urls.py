@@ -1,6 +1,10 @@
 from django.urls import path
 from . import views
 urlpatterns = [
+    path('history/', views.history_page, name='history'),
+    path('api/attempts/', views.attempt_history),
+    path('api/attempts/<int:attempt_id>/', views.attempt_detail),
+    path('api/progress/export/', views.export_progress, name='export_progress'),
     path('learn/', views.learning_guide, name='learning_guide'),
     path('account/settings/', views.account_settings, name='account_settings'),
     path('api/account/preferences/', views.save_preferences),

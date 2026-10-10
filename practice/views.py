@@ -1,7 +1,11 @@
 import json
 import hashlib
 from django.core.cache import cache
-from django.http import JsonResponse, Http404
+from django.http import JsonResponse, Http404, StreamingHttpResponse
+from django.core.paginator import Paginator, InvalidPage
+from django.db import transaction
+from django.utils import timezone
+from datetime import timedelta
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -79,8 +83,23 @@ def progress(request):
         return error
     attempts = Attempt.objects.filter(user=request.user)
     solved = list(attempts.filter(accepted=True).values_list('problem_id', flat=True).distinct())
-    activity = list(attempts.order_by('-created_at').values('problem_id', 'accepted', 'created_at')[:20])
-    return JsonResponse({'solved': solved, 'total_attempts': attempts.count(), 'activity': activity,
+    activity = list(attempts.order_by('-created_at').values('id', 'problem_id', 'accepted', 'error', 'tests_passed', 'tests_total', 'created_at')[:20])
+    total = attempts.count()
+    accepted = attempts.filter(accepted=True).count()
+    dates = set(attempts.dates('created_at', 'day'))
+    day = timezone.now().date()
+    if day not in dates:
+        day -= timedelta(days=1)
+    streak = 0
+    while day in dates:
+        streak += 1
+        day -= timedelta(days=1)
+    drafts = list(Draft.objects.filter(user=request.user).order_by('-updated_at').values('problem_id', 'updated_at')[:5])
+    next_question = next((q for q in QUESTIONS if q['id'] not in solved), None)
+    return JsonResponse({'solved': solved, 'total_attempts': total, 'accepted_attempts': accepted,
+        'acceptance_rate': round(100 * accepted / total, 1) if total else 0,
+        'attempted_count': attempts.values('problem_id').distinct().count(), 'streak_days': streak,
+        'drafts': drafts, 'next_problem': next_question['id'] if next_question else None, 'activity': activity,
         'email': request.user.email, 'by_level': {level: sum(q['id'] in solved for q in QUESTIONS if q['level'] == level) for level in ('Basic', 'Intermediate', 'Advanced', 'Engineering')}})
 
 @require_POST
@@ -151,8 +170,9 @@ def reveal_solution(request, slug):
 def delete_progress(request):
     if error := auth_error(request):
         return error
-    Attempt.objects.filter(user=request.user).delete()
-    Draft.objects.filter(user=request.user).delete()
+    with transaction.atomic():
+        Attempt.objects.filter(user=request.user).delete()
+        Draft.objects.filter(user=request.user).delete()
     return JsonResponse({'deleted': True})
 
 
@@ -188,3 +208,90 @@ def learning_guide(request):
                'topics': sorted({q['topic'] for q in QUESTIONS if q['level'] == level})}
               for level in ('Basic', 'Intermediate', 'Advanced', 'Engineering')]
     return render(request, 'practice/guide.html', {'levels': levels})
+
+
+def attempt_page(request):
+    attempts = Attempt.objects.filter(user=request.user).order_by('-created_at', '-id')
+    status = request.GET.get('status', 'all')
+    slug = request.GET.get('problem', '')
+    if status not in ('all', 'accepted', 'failed') or (slug and slug not in BY_ID):
+        raise ValueError('Choose a valid status and problem.')
+    if status != 'all':
+        attempts = attempts.filter(accepted=status == 'accepted')
+    if slug:
+        attempts = attempts.filter(problem_id=slug)
+    page_value = request.GET.get('page', '1')
+    if not page_value.isdecimal() or not 1 <= int(page_value) <= 100000:
+        raise ValueError('Choose a valid page number.')
+    try:
+        page = Paginator(attempts, 25).page(int(page_value))
+    except InvalidPage:
+        raise Http404('Page not found.')
+    return page, status, slug
+
+
+@login_required
+@require_GET
+def history_page(request):
+    if error := auth_error(request):
+        return error
+    try:
+        page, status, slug = attempt_page(request)
+    except ValueError as exc:
+        return render(request, 'practice/history.html', {'filter_error': str(exc), 'questions': QUESTIONS}, status=400)
+    for attempt in page:
+        q = BY_ID.get(attempt.problem_id)
+        attempt.title = q['title'] if q else {'en': attempt.problem_id, 'hi': attempt.problem_id}
+    return render(request, 'practice/history.html', {'attempts': page, 'status': status, 'problem': slug, 'questions': QUESTIONS})
+
+
+@require_GET
+def attempt_history(request):
+    if error := auth_error(request):
+        return error
+    try:
+        page, _, _ = attempt_page(request)
+    except ValueError as exc:
+        return JsonResponse({'error': str(exc)}, status=400)
+    return JsonResponse({'page': page.number, 'pages': page.paginator.num_pages, 'total': page.paginator.count,
+        'attempts': [{'id': a.pk, 'problem_id': a.problem_id, 'accepted': a.accepted, 'error': a.error,
+                      'tests_passed': a.tests_passed, 'tests_total': a.tests_total, 'created_at': a.created_at}
+                     for a in page]})
+
+
+@require_GET
+def attempt_detail(request, attempt_id):
+    if error := auth_error(request):
+        return error
+    attempt = Attempt.objects.filter(user=request.user, pk=attempt_id).first()
+    if not attempt:
+        return JsonResponse({'error': 'Submission not found.'}, status=404)
+    return JsonResponse({'id': attempt.pk, 'problem_id': attempt.problem_id, 'sql': attempt.sql,
+        'accepted': attempt.accepted, 'error': attempt.error, 'tests_passed': attempt.tests_passed,
+        'tests_total': attempt.tests_total, 'created_at': attempt.created_at})
+
+
+@require_GET
+def export_progress(request):
+    if error := auth_error(request):
+        return error
+    # Stream each account-scoped record; avoid loading an unbounded history in memory.
+    def records():
+        yield json.dumps({'format_version': 1, 'exported_at': timezone.now().isoformat(), 'email': request.user.email,
+                          'language': LearnerPreference.objects.filter(user=request.user).values_list('language', flat=True).first() or 'en'})[:-1]
+        for label, queryset, fields in [
+            ('drafts', Draft.objects.filter(user=request.user).order_by('pk'), ('problem_id', 'sql', 'updated_at')),
+            ('attempts', Attempt.objects.filter(user=request.user).order_by('pk'), ('problem_id', 'sql', 'accepted', 'error', 'tests_passed', 'tests_total', 'created_at')),
+        ]:
+            yield ', ' + json.dumps(label) + ': ['
+            first = True
+            for record in queryset.values(*fields).iterator(chunk_size=200):
+                if not first:
+                    yield ','
+                yield json.dumps(record, default=lambda value: value.isoformat())
+                first = False
+            yield ']'
+        yield '}'
+    response = StreamingHttpResponse(records(), content_type='application/json')
+    response['Content-Disposition'] = 'attachment; filename="sqlcraft-practice-data.json"'
+    return response
