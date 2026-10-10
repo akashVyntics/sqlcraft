@@ -34,7 +34,7 @@ TEMPLATES = [{'BACKEND': 'django.template.backends.django.DjangoTemplates',
         'django.contrib.messages.context_processors.messages', 'practice.context_processors.site_settings',
     ]}}]
 WSGI_APPLICATION = 'config.wsgi.application'
-DATABASES = {'default': dj_database_url.config(default=f'sqlite:///{BASE_DIR / "db.sqlite3"}', conn_max_age=0)}
+DATABASES = {'default': dj_database_url.parse(os.getenv('DATABASE_URL') or f'sqlite:///{BASE_DIR / "db.sqlite3"}', conn_max_age=0)}
 if not DEBUG:
     if not os.getenv('DATABASE_URL') or DATABASES['default']['ENGINE'] != 'django.db.backends.postgresql':
         raise ImproperlyConfigured('Production requires DATABASE_URL for durable PostgreSQL.')
