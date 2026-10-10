@@ -80,8 +80,8 @@ with sync_playwright() as driver:
     page.reload(wait_until='networkidle')
     expect(page.locator('#language')).to_have_value('en')
     page.set_viewport_size({'width': 390, 'height': 844})
-    assert page.evaluate('document.documentElement.scrollWidth <= window.innerWidth'), 'Mobile dashboard overflows horizontally'
     page.screenshot(path=str(OUTPUT / 'mobile.png'))
+    assert page.evaluate('document.documentElement.scrollWidth <= window.innerWidth'), str(page.evaluate("Array.from(document.querySelectorAll('body *')).filter(e => e.getBoundingClientRect().right > innerWidth).slice(0,15).map(e => [e.tagName,e.id,e.className,e.getBoundingClientRect().right])"))
     page.goto(BASE + '/history/', wait_until='networkidle')
     assert page.evaluate('document.documentElement.scrollWidth <= window.innerWidth'), 'Mobile history overflows horizontally'
     page.screenshot(path=str(OUTPUT / 'history-mobile.png'))
