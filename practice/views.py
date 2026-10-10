@@ -19,6 +19,8 @@ from .judge import execute_sql, same_result, RunnerUnavailable
 from .models import Attempt, Draft, LearnerPreference
 from .questions import QUESTIONS, BY_ID
 
+DATASET_SIGNATURE = hashlib.sha256(json.dumps([dataset(seed) for seed in (0, 7, 22)], sort_keys=True).encode()).hexdigest()
+
 @ensure_csrf_cookie
 def home(request):
     return render(request, 'practice/home.html', {'question_count': len(QUESTIONS)})
@@ -62,7 +64,7 @@ def body(request):
 @require_GET
 def question_list(request):
     solved = set()
-    if request.user.is_authenticated:
+    if request.user.is_authenticated and EmailAddress.objects.filter(user=request.user, verified=True).exists():
         solved = set(Attempt.objects.filter(user=request.user, accepted=True).values_list('problem_id', flat=True))
     return JsonResponse({'questions': [{k: q[k] for k in ('id', 'title', 'level', 'topic')} | {'solved': q['id'] in solved} for q in QUESTIONS]})
 
@@ -74,7 +76,7 @@ def question_detail(request, slug):
     public = {k: v for k, v in q.items() if k not in ('solution', 'explanation')}
     samples = dataset(0)
     public['schema'] = [{'name': t, 'columns': SCHEMA[t], 'rows': samples[t], 'row_count': len(samples[t])} for t in q['tables']]
-    if request.user.is_authenticated:
+    if request.user.is_authenticated and EmailAddress.objects.filter(user=request.user, verified=True).exists():
         draft = Draft.objects.filter(user=request.user, problem_id=slug).first()
         public['draft'] = draft.sql if draft else None
         public['solved'] = Attempt.objects.filter(user=request.user, problem_id=slug, accepted=True).exists()
@@ -140,7 +142,7 @@ def run_query(request, slug):
             raise ValueError('Choose run or submit.')
         seeds = (0, 7, 22) if mode == 'submit' else (0,)
         actual = execute_sql(sql, seeds)
-        key = 'reference:' + hashlib.sha256((q['id'] + q['solution'] + str(seeds)).encode()).hexdigest()
+        key = 'reference:' + hashlib.sha256((DATASET_SIGNATURE + q['id'] + q['solution'] + str(seeds)).encode()).hexdigest()
         expected = cache.get(key)
         if expected is None:
             expected = execute_sql(q['solution'], seeds)
