@@ -2,6 +2,7 @@
 import random
 
 SCHEMA = {
+    'events': [('event_id', 'INTEGER'), ('user_id', 'INTEGER'), ('event_time', 'TIMESTAMP'), ('event_type', 'VARCHAR'), ('device', 'VARCHAR')],
     'customers': [('customer_id', 'INTEGER'), ('name', 'VARCHAR'), ('region', 'VARCHAR'), ('signup_date', 'DATE')],
     'orders': [('order_id', 'INTEGER'), ('customer_id', 'INTEGER'), ('order_date', 'DATE'), ('status', 'VARCHAR'), ('amount', 'DECIMAL(12,2)')],
     'payments': [('event_id', 'INTEGER'), ('payment_id', 'VARCHAR'), ('order_id', 'INTEGER'), ('event_time', 'TIMESTAMP'), ('status', 'VARCHAR'), ('amount', 'DECIMAL(12,2)')],
@@ -53,7 +54,27 @@ def dataset(seed=0):
     ]
     if seed:
         updates.append((8, 4, 'West', '2025-03-20 00:00:00', '2025-03-21 00:00:00'))
-    return dict(customers=customers, orders=orders, payments=payments, customer_updates=updates)
+    events = [
+        (1, 1, '2025-03-01 09:00:00', 'view', 'mobile'),
+        (2, 1, '2025-03-01 09:01:00', 'click', 'mobile'),
+        (3, 1, '2025-03-01 09:02:00', 'purchase', 'desktop'),
+        (4, 2, '2025-03-01 10:00:00', 'view', 'desktop'),
+        (5, 2, '2025-03-01 10:01:00', 'view', 'desktop'),
+        (6, 3, '2025-03-01 11:00:00', 'purchase', 'mobile'),
+        (7, 3, '2025-03-01 11:01:00', 'view', 'mobile'),
+        (8, 3, '2025-03-01 11:02:00', 'click', 'mobile'),
+        (9, 4, '2025-03-01 12:00:00', 'view', 'desktop'),
+        (10, 4, '2025-03-01 12:00:00', 'click', 'desktop'),
+        (11, 4, '2025-03-01 12:01:00', 'purchase', 'desktop'),
+        (12, None, '2025-03-01 13:00:00', 'view', 'mobile'),
+        (13, 5, '2025-03-01 14:00:00', 'click', 'tablet'),
+    ]
+    if seed:
+        events.extend([(14, 2, '2025-03-02 09:00:00', 'click', 'desktop'),
+                       (15, 2, '2025-03-02 09:01:00', 'purchase', 'mobile'),
+                       (16, 6, '2025-03-02 10:00:00', 'view', 'tablet')])
+        orders.append((21, 999, '2025-03-30', 'pending', 10))
+    return dict(customers=customers, orders=orders, payments=payments, customer_updates=updates, events=events)
 
 def populate(connection, seed):
     for table, columns in SCHEMA.items():

@@ -64,6 +64,7 @@
     const status = $('#status-filter').value;
     const visible = questions.filter(q => (level === 'all' || q.level === level) &&
       (status === 'all' || (status === 'solved') === q.solved) &&
+      ($('#topic-filter').value === 'all' || q.topic === $('#topic-filter').value) &&
       [q.title.en, q.title.hi, q.topic].some(v => v.toLowerCase().includes(text)));
     visible.forEach(q => {
       const tr = el('tr');
@@ -155,8 +156,8 @@
   }
   languageSelect.addEventListener('change', () => { language = languageSelect.value; try { localStorage.setItem('sqlcraft-language', language); } catch (_) {} if (authenticated) api('/api/account/preferences/', {language}).catch(error => { const message = el('p', error.message, 'load-error'); document.querySelector('header').after(message); }); renderQuestions(); renderProblemLanguage(); if ($('#progress-content')) loadProgress(); });
   if (document.body.dataset.page === 'home') {
-    api('/api/questions/').then(data => { questions = data.questions; renderQuestions(); return loadProgress(); }).catch(error => { $('#list-message').textContent = error.message; $('#problem-count').textContent = 'Could not load'; });
-    $('#search').addEventListener('input', renderQuestions); $('#status-filter').addEventListener('change', renderQuestions);
+    api('/api/questions/').then(data => { questions = data.questions; [...new Set(questions.map(q => q.topic))].sort().forEach(topic => { const option = el('option', topic); option.value = topic; $('#topic-filter').append(option); }); renderQuestions(); return loadProgress(); }).catch(error => { $('#list-message').hidden = false; $('#list-message').textContent = error.message; $('#problem-count').textContent = 'Could not load'; });
+    $('#search').addEventListener('input', renderQuestions); $('#status-filter').addEventListener('change', renderQuestions); $('#topic-filter').addEventListener('change', renderQuestions);
     document.querySelectorAll('[data-level]').forEach(button => button.addEventListener('click', () => { setLevel(button.dataset.level); if (button.classList.contains('path-link')) $('#practice').scrollIntoView(); }));
     const reset = $('#reset-progress');
     if (reset) reset.addEventListener('click', () => {

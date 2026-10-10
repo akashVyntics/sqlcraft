@@ -174,3 +174,11 @@ def save_preferences(request):
         return JsonResponse({'saved': True})
     except ValueError as exc:
         return JsonResponse({'error': str(exc)}, status=400)
+
+
+@require_GET
+def learning_guide(request):
+    levels = [{'name': level, 'count': sum(q['level'] == level for q in QUESTIONS),
+               'topics': sorted({q['topic'] for q in QUESTIONS if q['level'] == level})}
+              for level in ('Basic', 'Intermediate', 'Advanced', 'Engineering')]
+    return render(request, 'practice/guide.html', {'levels': levels})
