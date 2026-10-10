@@ -2,12 +2,16 @@ import json
 import hashlib
 from django.core.cache import cache
 from django.http import JsonResponse, Http404
-from django.shortcuts import render
+from django.shortcuts import render, redirect
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from allauth.account.models import EmailAddress
+from .forms import PreferenceForm
 from django.views.decorators.http import require_GET, require_POST
 from django.views.decorators.csrf import ensure_csrf_cookie
 from .fixtures import SCHEMA, dataset
 from .judge import execute_sql, same_result
-from .models import Attempt, Draft
+from .models import Attempt, Draft, LearnerPreference
 from .questions import QUESTIONS, BY_ID
 
 @ensure_csrf_cookie
@@ -23,6 +27,8 @@ def problem_page(request, slug):
 def auth_error(request):
     if not request.user.is_authenticated:
         return JsonResponse({'error': 'Sign in to save your progress and run queries.'}, status=401)
+    if not EmailAddress.objects.filter(user=request.user, verified=True).exists():
+        return JsonResponse({'error': 'Verify your email before using your account.'}, status=403)
 
 def limited(request, category, count=30):
     key = f'limit:{category}:{request.user.pk}'
@@ -142,3 +148,29 @@ def delete_progress(request):
     Attempt.objects.filter(user=request.user).delete()
     Draft.objects.filter(user=request.user).delete()
     return JsonResponse({'deleted': True})
+
+
+@login_required
+def account_settings(request):
+    preference, _ = LearnerPreference.objects.get_or_create(user=request.user)
+    form = PreferenceForm(request.POST if request.method == 'POST' else None, initial={'language': preference.language})
+    if request.method == 'POST' and form.is_valid():
+        preference.language = form.cleaned_data['language']
+        preference.save(update_fields=['language'])
+        messages.success(request, 'Your preferences have been saved.')
+        return redirect('account_settings')
+    return render(request, 'practice/account_settings.html', {'form': form})
+
+
+@require_POST
+def save_preferences(request):
+    if error := auth_error(request):
+        return error
+    try:
+        form = PreferenceForm(body(request))
+        if not form.is_valid():
+            raise ValueError('Choose English or Hinglish.')
+        LearnerPreference.objects.update_or_create(user=request.user, defaults=form.cleaned_data)
+        return JsonResponse({'saved': True})
+    except ValueError as exc:
+        return JsonResponse({'error': str(exc)}, status=400)

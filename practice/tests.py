@@ -75,6 +75,7 @@ class AccountAndProgressTests(TestCase):
         self.alice = get_user_model().objects.create_user(username='alice', email='alice@example.com', password='a-long-example-password')
         self.bob = get_user_model().objects.create_user(username='bob', email='bob@example.com', password='a-long-example-password')
         EmailAddress.objects.create(user=self.alice, email=self.alice.email, primary=True, verified=True)
+        EmailAddress.objects.create(user=self.bob, email=self.bob.email, primary=True, verified=False)
         self.client.force_login(self.alice)
 
     def post(self, path, data):
@@ -167,6 +168,7 @@ class AccountAndProgressTests(TestCase):
     def test_account_sessions_are_separate(self):
         self.post('/api/questions/completed-orders/draft/', {'sql': 'SELECT 1'})
         self.client.logout()
+        EmailAddress.objects.filter(user=self.bob).update(verified=True)
         self.client.force_login(self.bob)
         self.assertIsNone(self.client.get('/api/questions/completed-orders/').json()['draft'])
 
